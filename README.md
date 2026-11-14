@@ -1,14 +1,37 @@
 # SocketJack.Ftdi
 
-SocketJack.Ftdi connects a Windows FTDI virtual COM port to a remote process over an authenticated SocketJack TLS connection. The client reads bytes from standard input and writes serial responses to standard output. It runs on .NET 10 and uses the public [SocketJack NuGet package](https://www.nuget.org/packages/SocketJack/2026.11.14).
+SocketJack.Ftdi connects an FTDI serial adapter on Windows or Linux to a remote process over an authenticated SocketJack TLS connection. The client reads bytes from standard input and writes serial responses to standard output. It runs on .NET 10 and uses the public [SocketJack NuGet package](https://www.nuget.org/packages/SocketJack/2026.11.14).
 
 ## Requirements
 
-- The host needs Windows, .NET 10, and an FTDI adapter with its virtual COM port (VCP) driver installed. In Device Manager, confirm that **Ports (COM & LPT)** shows **USB Serial Port (COMx)**. [FTDI VCP drivers](https://ftdichip.com/drivers/vcp-drivers/)
+- On Windows, install the FTDI virtual COM port (VCP) driver. In Device Manager, confirm that **Ports (COM & LPT)** shows **USB Serial Port (COMx)**. [FTDI VCP drivers](https://ftdichip.com/drivers/vcp-drivers/)
 - If Windows shows **USB Serial Converter** with no COM port, open that device’s **Properties**, select **Advanced**, and enable **Load VCP** if the driver offers it. Reconnect the adapter and check **Ports (COM & LPT)** again. [FTDI Advanced Driver Options, §2.1](https://ftdichip.com/wp-content/uploads/2020/08/AN_107_AdvancedDriverOptions_AN_000073.pdf)
 - Use a PFX server certificate with the private key and a hostname or IP address matching the client’s TLS name. The client uses the operating system’s certificate trust and validates that name. Both sides need the same 32-byte key, stored as Base64 in `SOCKETJACK_FTDI_KEY`.
 
-The bridge carries UART data using an existing COM port. It opens one serial connection at a time. Local programs using that COM port must release it first. Direct D2XX calls, USB forwarding, client-side COM emulation, and ECU-specific logging protocols are outside this bridge’s scope. [FTDI Windows driver model](https://www.ftdichip.com/Support/Knowledgebase/2000installingftdidevicedriver.htm)
+The bridge carries UART data using an existing serial port. It opens one serial connection at a time. Local programs using that port must release it first. Direct D2XX calls, USB forwarding, client-side COM emulation, and ECU-specific logging protocols are outside this bridge’s scope. [FTDI driver model](https://ftdichip.com/drivers/)
+
+## Raspberry Pi and Linux ARM
+
+Use a .NET 10-compatible Linux system with the FTDI `ftdi_sio` kernel driver. Plug the adapter into a USB host port and give the relay user read/write access to its device node. Debian-based systems commonly assign the serial device to `dialout`. The `ports` command lists detected FTDI devices by their `/dev/ttyUSBn` paths.
+
+Publish for the board’s OS architecture from a machine with the .NET 10 SDK. Use `linux-arm64` for a 64-bit OS or `linux-arm` for supported 32-bit ARM Linux. The package includes the .NET runtime and uses your system’s native Linux libraries and certificate store. [Microsoft Linux ARM deployment](https://learn.microsoft.com/en-us/dotnet/iot/deployment)
+
+```sh
+dotnet publish src/SocketJack.Ftdi -c Release -r linux-arm64 --self-contained true -o artifacts/linux-arm64
+dotnet publish src/SocketJack.Ftdi -c Release -r linux-arm --self-contained true -o artifacts/linux-arm
+```
+
+Copy the matching publish folder to the board and run the binary there.
+
+```sh
+chmod +x SocketJack.Ftdi
+./SocketJack.Ftdi ports
+./SocketJack.Ftdi serve --cert /path/to/server.pfx --serial /dev/ttyUSB0 --baud 115200 --listen 192.168.1.20
+```
+
+Use the board’s LAN or VPN IPv4 address in place of `192.168.1.20`. Supply the same environment key and trusted certificate as in the Windows example.
+
+Raspberry Pi models with a supported ARMv7 or ARM64 Linux OS can use the matching build. The original Pi Zero and Zero W use ARMv6. Arduino UNO Q can run Linux applications on its Debian processor. Bare-metal Arduino boards would need separate firmware. [Raspberry Pi Zero specifications](https://www.raspberrypi.com/documentation/computers/zero.html) · [Arduino UNO Q](https://docs.arduino.cc/hardware/uno-q)
 
 ## Build and connect
 

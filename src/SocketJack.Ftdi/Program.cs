@@ -11,10 +11,11 @@ const string help = """
 
       ports
       keygen
-      serve --cert PATH --serial COMx [--listen IPV4] [--port 4465] [--baud 115200] [--profile 8n1]
+      serve --cert PATH --serial PORT [--listen IPV4] [--port 4465] [--baud 115200] [--profile 8n1]
       connect [--host localhost] [--port 4465] [--tls-name NAME]
 
-    serve uses a Windows FTDI Virtual COM Port. The default listen address is 127.0.0.1.
+    serve uses an FTDI COM port on Windows or /dev/ttyUSBn on Linux.
+    The default listen address is 127.0.0.1.
     Both peers read a 32-byte base64 key from SOCKETJACK_FTDI_KEY.
     Optional PFX password: SOCKETJACK_FTDI_CERT_PASSWORD.
     connect reads and writes binary bytes through redirected stdin and stdout.
@@ -34,25 +35,23 @@ try {
         return 0;
     }
     if (args is ["ports"]) {
-        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("FTDI port discovery requires Windows.");
         foreach (var port in FtdiVcp.Ports()) Console.WriteLine(port);
         return 0;
     }
     if (args[0] == "serve") {
-        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Serving a physical FTDI COM port requires Windows.");
         var options = ParseOptions(args[1..], ["cert", "serial", "listen", "port", "baud", "profile"]);
         var settings = SerialSettings.Parse(Required(options, "serial"), options.GetValueOrDefault("baud", "115200"), options.GetValueOrDefault("profile", "8n1"));
-        if (!FtdiVcp.Ports().Contains(settings.Port, StringComparer.OrdinalIgnoreCase))
-            throw new IOException("The configured port is not a present FTDI Virtual COM Port. Run ports to list candidates.");
+        FtdiVcp.RequirePresentPort(settings.Port);
         if (!IPAddress.TryParse(options.GetValueOrDefault("listen", "127.0.0.1"), out var address) || address.AddressFamily != AddressFamily.InterNetwork)
             throw new ArgumentException("Listen address must be an IPv4 address.");
         var key = ReadKey();
         try {
             using var certificate = X509CertificateLoader.LoadPkcs12FromFile(Required(options, "cert"),
-                Environment.GetEnvironmentVariable("SOCKETJACK_FTDI_CERT_PASSWORD"), X509KeyStorageFlags.UserKeySet);
+                Environment.GetEnvironmentVariable("SOCKETJACK_FTDI_CERT_PASSWORD"),
+                OperatingSystem.IsWindows() ? X509KeyStorageFlags.UserKeySet : X509KeyStorageFlags.EphemeralKeySet);
             if (!certificate.HasPrivateKey) throw new ArgumentException("The PFX certificate requires a private key.");
             using var bridge = new BridgeServer(address, NetworkPort(options), certificate, key, settings,
-                () => OperatingSystem.IsWindows() ? new FtdiVcp(settings) : throw new PlatformNotSupportedException());
+                () => new FtdiVcp(settings));
             Console.Error.WriteLine($"Listening on {bridge.Listen()} for {settings.Port} at {settings.Baud} {settings.Profile}.");
             await Task.Delay(Timeout.InfiniteTimeSpan, stop.Token);
         } finally { CryptographicOperations.ZeroMemory(key); }

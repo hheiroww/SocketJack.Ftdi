@@ -8,6 +8,7 @@ using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
 var key = RandomNumberGenerator.GetBytes(BridgeProtocol.KeyBytes);
 var fixture = Enumerable.Range(0, 32_789).Select(value => (byte)(value % 256)).ToArray();
 var settings = SerialSettings.Parse("simulated", "115200", "8n1");
+CheckLinuxDiscovery();
 var direct = new SerialSession(settings.Baud);
 using var directReply = new MemoryStream();
 var directStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -104,6 +105,61 @@ return 0;
 
 static void Equal(byte[] actual, byte[] expected, string test) {
     if (!actual.AsSpan().SequenceEqual(expected)) throw new Exception($"Invalid {test}: expected {expected.Length} bytes, received {actual.Length}.");
+}
+
+static void CheckLinuxDiscovery() {
+    var root = Path.Combine(Path.GetTempPath(), "socketjack-ftdi-sysfs-" + Guid.NewGuid().ToString("N"));
+    var sys = Path.Combine(root, "sys");
+    var dev = Path.Combine(root, "dev");
+    Directory.CreateDirectory(dev);
+    var links = new Dictionary<string, DirectoryInfo>(StringComparer.Ordinal);
+    var useFilesystemLinks = OperatingSystem.IsLinux();
+    var interfaceSuffix = useFilesystemLinks ? ":1.0" : "-interface";
+
+    void AddLink(string link, string target) {
+        Directory.CreateDirectory(Path.GetDirectoryName(link)!);
+        Directory.CreateDirectory(target);
+        if (useFilesystemLinks) Directory.CreateSymbolicLink(link, Path.GetRelativePath(Path.GetDirectoryName(link)!, target));
+        else {
+            Directory.CreateDirectory(link);
+            links.Add(link, new DirectoryInfo(target));
+        }
+    }
+
+    void AddPort(string name, string driverBus, string driverName, bool interfaceDriver = false, bool hasNode = true, bool outsideSysfs = false) {
+        var device = Path.Combine(outsideSysfs ? root : Path.Combine(sys, "devices"), "usb1", name + interfaceSuffix);
+        var usbSerialPort = Path.Combine(device, name);
+        var ttyPort = Path.Combine(usbSerialPort, "tty", name);
+        AddLink(Path.Combine(sys, "class", "tty", name), ttyPort);
+        if (driverName.Length > 0)
+            AddLink(Path.Combine(interfaceDriver ? device : usbSerialPort, "driver"), Path.Combine(sys, "bus", driverBus, "drivers", driverName));
+        if (hasNode) File.WriteAllBytes(Path.Combine(dev, name), []);
+    }
+
+    AddPort("ttyUSB0", "usb-serial", "ftdi_sio");
+    AddPort("ttyUSB10", "usb", "ftdi_sio", interfaceDriver: true);
+    AddPort("ttyUSB1", "usb-serial", "cp210x");
+    AddPort("ttyUSB2", "usb-serial", "ftdi_sio", hasNode: false);
+    AddPort("ttyUSB3", "usb-serial", "");
+    AddPort("ttyUSB4", "usb-serial", "ftdi_sio", outsideSysfs: true);
+    AddPort("ttyUSB5alias", "usb-serial", "ftdi_sio");
+    AddPort("ttyUSB6", "usb", "ftdi_sio", interfaceDriver: true);
+    AddLink(Path.Combine(sys, "devices", "usb1", "ttyUSB6" + interfaceSuffix, "ttyUSB6", "driver"),
+        Path.Combine(sys, "bus", "usb-serial", "drivers", "cp210x"));
+    AddPort("ttyUSB7", "other", "ftdi_sio");
+    AddPort("ttyUSB9", "usb-serial", "FTDI_SIO");
+    AddPort("ttyusb11", "usb-serial", "ftdi_sio");
+    AddPort("ttyS0", "usb-serial", "ftdi_sio");
+    if (useFilesystemLinks) {
+        AddPort("ttyUSB8", "usb-serial", "ftdi_sio", hasNode: false);
+        File.CreateSymbolicLink(Path.Combine(dev, "ttyUSB8"), "ttyUSB0");
+    }
+
+    var ports = LinuxFtdiPorts.Discover(sys, dev, useFilesystemLinks ? null : link => links.GetValueOrDefault(link.FullName));
+    if (!ports.SequenceEqual(new[] { Path.Combine(dev, "ttyUSB0"), Path.Combine(dev, "ttyUSB10") }))
+        throw new Exception("Linux discovery returned incorrect FTDI ports.");
+    if (LinuxFtdiPorts.Discover(Path.Combine(root, "absent"), dev).Length != 0) throw new Exception("Missing sysfs returned ports.");
+    Console.WriteLine("PASS Linux FTDI discovery requires a present canonical ttyUSB node and the real FTDI kernel driver");
 }
 
 [System.Runtime.Versioning.SupportedOSPlatform("windows")]
