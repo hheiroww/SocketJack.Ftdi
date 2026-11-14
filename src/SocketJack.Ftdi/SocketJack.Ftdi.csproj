@@ -5,7 +5,27 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Version>2026.11.14</Version>
+    <PackAsTool>true</PackAsTool>
+    <CreateRidSpecificToolPackages>false</CreateRidSpecificToolPackages>
+    <ToolCommandName>socketjack-ftdi</ToolCommandName>
+    <PackageId>SocketJack.Ftdi</PackageId>
+    <Title>SocketJack FTDI Serial Relay</Title>
+    <Authors>hheiroww</Authors>
+    <Description>Relay an FTDI serial port over an authenticated SocketJack TLS connection from Windows or Linux, including ARM.</Description>
+    <PackageTags>socketjack;ftdi;serial;tls;raspberry-pi;dotnet-tool</PackageTags>
+    <PackageProjectUrl>https://github.com/hheiroww/SocketJack.Ftdi</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/hheiroww/SocketJack.Ftdi</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>SocketJackFtdiIcon.png</PackageIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../assets/SocketJackFtdiIcon.png" Pack="true" PackagePath="/" />
+    <None Include="../../assets/licenses/*" Pack="true" PackagePath="licenses/" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="SocketJack" Version="[2026.11.14]" />
     <PackageReference Include="System.IO.Ports" Version="[10.0.0]" />

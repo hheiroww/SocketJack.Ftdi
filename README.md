@@ -2,6 +2,18 @@
 
 SocketJack.Ftdi connects an FTDI serial adapter on Windows or Linux to a remote process over an authenticated SocketJack TLS connection. The client reads bytes from standard input and writes serial responses to standard output. It runs on .NET 10 and uses the public [SocketJack NuGet package](https://www.nuget.org/packages/SocketJack/2026.11.14).
 
+## Install the .NET tool
+
+On a supported Windows or Linux system with the .NET 10 SDK installed:
+
+```sh
+dotnet tool install --global SocketJack.Ftdi
+socketjack-ftdi --help
+socketjack-ftdi ports
+```
+
+The same package works on Linux x64, ARM64 and ARMv7 when the board has a compatible .NET 10 installation. Use the self-contained build instructions below when you want to copy the relay to a board without installing .NET on it.
+
 ## Requirements
 
 - On Windows, install the FTDI virtual COM port (VCP) driver. In Device Manager, confirm that **Ports (COM & LPT)** shows **USB Serial Port (COMx)**. [FTDI VCP drivers](https://ftdichip.com/drivers/vcp-drivers/)
