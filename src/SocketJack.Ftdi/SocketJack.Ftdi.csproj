@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>2026.11.20.1</Version>
+    <Version>2026.11.20.2</Version>
     <PackAsTool>true</PackAsTool>
     <CreateRidSpecificToolPackages>false</CreateRidSpecificToolPackages>
     <ToolCommandName>socketjack-ftdi</ToolCommandName>
