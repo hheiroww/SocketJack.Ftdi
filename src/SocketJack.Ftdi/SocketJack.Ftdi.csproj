@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>2026.11.14</Version>
+    <Version>2026.11.20.1</Version>
     <PackAsTool>true</PackAsTool>
     <CreateRidSpecificToolPackages>false</CreateRidSpecificToolPackages>
     <ToolCommandName>socketjack-ftdi</ToolCommandName>
@@ -27,7 +27,7 @@
     <None Include="../../assets/licenses/*" Pack="true" PackagePath="licenses/" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="SocketJack" Version="[2026.11.14]" />
+    <PackageReference Include="SocketJack" Version="[2026.11.16]" />
     <PackageReference Include="System.IO.Ports" Version="[10.0.0]" />
     <InternalsVisibleTo Include="SocketJack.Ftdi.Checks" />
   </ItemGroup>
